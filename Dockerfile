@@ -1,7 +1,7 @@
-FROM ubuntu:bionic-20200112
+FROM ubuntu:16.04
 
 # Install dependencies
-RUN echo 'deb http://us.archive.ubuntu.com/ubuntu bionic main multiverse' >> /etc/apt/sources.list && \
+RUN echo 'deb http://us.archive.ubuntu.com/ubuntu trusty main multiverse' >> /etc/apt/sources.list && \
     apt-get update -y && \
     apt-get --no-install-recommends -y install \
     build-essential \
