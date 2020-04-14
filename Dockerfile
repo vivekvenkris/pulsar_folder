@@ -1,4 +1,4 @@
-FROM ubuntu:ubuntu:bionic-20200112
+FROM ubuntu:bionic-20200112
 
 # Install dependencies
 RUN echo 'deb http://us.archive.ubuntu.com/ubuntu bionic main multiverse' >> /etc/apt/sources.list && \
