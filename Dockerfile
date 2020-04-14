@@ -169,5 +169,6 @@ RUN  pip3 install numpy
 
 RUN pip2 install clfd
 
+WORKDIR $HOME
 
 CMD ["bash"]
