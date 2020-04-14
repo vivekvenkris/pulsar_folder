@@ -69,7 +69,8 @@ RUN wget http://www.atnf.csiro.au/people/pulsar/psrcat/downloads/psrcat_pkg.tar.
     git clone https://bitbucket.org/psrsoft/tempo2.git && \
     git clone git://git.code.sf.net/p/psrchive/code psrchive && \
     git clone https://github.com/SixByNine/psrxml.git && \
-    git clone https://github.com/straten/epsic.git
+    git clone https://github.com/straten/epsic.git && \
+    git clone  git://git.code.sf.net/p/tempo/tempo
 
 #EPSIC
 ENV PATH $PATH:$PSRHOME/epsic/src
@@ -101,7 +102,6 @@ RUN ./configure --prefix=$PSRXML/install && \
     rm -rf .git
 
 # tempo
-RUN git clone https://git.code.sf.net/p/tempo/tempo
 ENV TEMPO=$PSRHOME"/tempo" \
     PATH=$PATH:$PSRHOME"/tempo/bin"
 WORKDIR $PSRHOME/tempo
