@@ -1,7 +1,10 @@
-FROM ubuntu:16.04
+FROM ubuntu:bionic
+
+# Suppress debconf warnings
+ENV DEBIAN_FRONTEND noninteractive
 
 # Install dependencies
-RUN echo 'deb http://us.archive.ubuntu.com/ubuntu trusty main multiverse' >> /etc/apt/sources.list && \
+RUN echo 'deb http://us.archive.ubuntu.com/ubuntu bionic main multiverse' >> /etc/apt/sources.list && \
     apt-get update -y && \
     apt-get --no-install-recommends -y install \
     build-essential \
@@ -18,38 +21,43 @@ RUN echo 'deb http://us.archive.ubuntu.com/ubuntu trusty main multiverse' >> /et
     git \
     libcfitsio-dev \
     pgplot5 \
-    swig2.0 \
-    python \
-    python-dev \
-    python-pip \
+    swig3.0 \
+    python3 \
+    python3-dev \
+    python3-pip \
     libfftw3-3 \
     libfftw3-bin \
     libfftw3-dev \
     libfftw3-single3 \
     libx11-dev \
-    libpng12-dev \
-    libpng3 \
+    libpng-dev \
     libpnglite-dev \
-    libhdf5-10 \
-    libhdf5-cpp-11 \
-    libhdf5-dev \
-    libhdf5-serial-dev \
     libxml2 \
     libxml2-dev \
     libltdl-dev \
     gsl-bin \
     libgsl-dev \
-    libgsl2 \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get -y clean
 
+RUN ln -s /usr/bin/python3 /usr/bin/python && \
+ln -s  /usr/bin/swig3.0  /usr/bin/swig
+
+
+
 # Install python2 packages
-RUN pip install pip -U && \
-    pip install setuptools -U && \
-    pip install numpy -U && \
-    pip install scipy -U && \
-    pip install watchdog && \
-    pip install matplotlib -U 
+RUN pip3 install pip -U && \
+    pip3 install setuptools -U && \
+    pip3 install numpy -U && \
+    pip3 install scipy -U && \
+    pip3 install watchdog && \
+    pip3 install matplotlib -U && \
+    pip3 install bilby -U && \
+    pip3 install -U setuptools setuptools_scm pep517 && \
+    pip3 install -U emcee && \
+    pip3 install jupyterlab -U && \
+    pip install git+https://github.com/FRBs/sigpyproc3
+    
 
 
 # PGPLOT
@@ -70,17 +78,8 @@ RUN wget http://www.atnf.csiro.au/people/pulsar/psrcat/downloads/psrcat_pkg.tar.
     git clone git://git.code.sf.net/p/psrchive/code psrchive && \
     git clone https://github.com/SixByNine/psrxml.git && \
     git clone https://github.com/straten/epsic.git && \
-    git clone  git://git.code.sf.net/p/tempo/tempo
-
-#EPSIC
-ENV PATH $PATH:$PSRHOME/epsic/src
-ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:$PSRHOME/epsic/src/.libs
-WORKDIR $PSRHOME/epsic/src/
-RUN ./bootstrap && \
-        ./configure &&\
-        make && \
-        make install && \
-        make clean
+    git clone  git://git.code.sf.net/p/tempo/tempo && \
+    git clone git://git.code.sf.net/p/dspsr/code dspsr
 
 #PSRCAT
 ENV PSRCAT_FILE $PSRHOME/psrcat_tar/psrcat.db
@@ -102,8 +101,8 @@ RUN ./configure --prefix=$PSRXML/install && \
     rm -rf .git
 
 # tempo
-ENV TEMPO=$PSRHOME"/tempo" \
-    PATH=$PATH:$PSRHOME"/tempo/bin"
+ENV TEMPO=$PSRHOME/tempo
+ENV PATH=$PATH:$PSRHOME/tempo/bin
 WORKDIR $PSRHOME/tempo
 RUN ./prepare && \
     ./configure --prefix=$PSRHOME/tempo && \
@@ -137,11 +136,7 @@ RUN ./bootstrap && \
     make && \
     make install
 
-WORKDIR $PSRHOME
-
-
 # DSPSR
-RUN git clone git://git.code.sf.net/p/dspsr/code dspsr
 ENV DSPSR $PSRHOME/dspsr
 ENV PATH $PATH:$DSPSR/install/bin
 ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:$DSPSR/install/lib
@@ -154,20 +149,8 @@ RUN ./bootstrap && \
     make && \
     make install
 
-
-# Python3 stuff for TRAPUM
-RUN  apt-get update && apt-get install -y python3-pip python3-dev python3 \
-     libmysqlclient-dev
-
-RUN apt-get install -y build-essential autoconf libtool
-RUN  pip3 install setuptools
-RUN  pip3 install mysqlclient
-RUN  pip3 install pika
-RUN  pip3 install numpy
-
-# Install CLFD
-
-RUN pip2 install clfd
+MAINTAINER Vivek Venkatraman Krishnan "vkrishnan@mpifr-bonn.mpg.de"
+ENV PYTHONPATH $PYTHONPATH:$PSRCHIVE/install/lib/python3.6/site-packages/
 
 WORKDIR /
 
