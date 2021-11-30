@@ -123,6 +123,10 @@ RUN ./bootstrap && \
     make plugins-install && \
     rm -rf .git
 
+#COPY gbt2gps.clk $TEMPO2/clock/
+#COPY mk2utc.clk $TEMPO2/clock/
+    
+
 # PSRCHIVE
 ENV PSRCHIVE $PSRHOME/psrchive
 ENV PATH $PATH:$PSRCHIVE/install/bin
@@ -130,7 +134,7 @@ ENV C_INCLUDE_PATH $C_INCLUDE_PATH:$PSRCHIVE/install/include
 ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:$PSRCHIVE/install/lib
 ENV PYTHONPATH $PSRCHIVE/install/lib/python2.7/site-packages
 WORKDIR $PSRCHIVE
-RUN ./bootstrap && \
+RUN git checkout 844461775b4b6f4b4e786d323ae82224b63c0e85 && ./bootstrap && \
     ./configure --prefix=$PSRCHIVE/install --x-libraries=/usr/lib/x86_64-linux-gnu --with-psrxml-dir=$PSRXML/install --enable-shared --enable-static F77=gfortran LDFLAGS="-L"$PSRXML"/install/lib" LIBS="-lpsrxml -lxml2" && \
     make -j $(nproc) && \
     make && \
@@ -149,9 +153,53 @@ RUN ./bootstrap && \
     make && \
     make install
 
-MAINTAINER Vivek Venkatraman Krishnan "vkrishnan@mpifr-bonn.mpg.de"
+
+LABEL Vivek Venkatraman Krishnan "vkrishnan@mpifr-bonn.mpg.de"
 ENV PYTHONPATH $PYTHONPATH:$PSRCHIVE/install/lib/python3.6/site-packages/
 
-WORKDIR /
+WORKDIR $PSRHOME
 
+RUN echo "" >> .bashrc && \
+    echo "if [ -e \$PSRHOME/source_this.bash ]; then" >> .bashrc && \
+    echo "   source \$PSRHOME/source_this.bash" >> .bashrc && \
+    echo "fi" >> .bashrc && \
+    echo "" >> .bashrc && \
+    echo "alias rm='rm -i'" >> source_this.bash && \
+    echo "alias mv='mv -i'" >> source_this.bash && \
+    echo "export OSTYPE=linux" >> source_this.bash && \
+    echo "" >> source_this.bash && \
+    echo "# Up arrow search" >> source_this.bash && \
+    echo "export HISTFILE=\$HOME/.bash_eternal_history" >> source_this.bash && \
+    echo "export HISTFILESIZE=" >> source_this.bash && \
+    echo "export HISTSIZE=" >> source_this.bash && \
+    echo "export HISTCONTROL=ignoreboth" >> source_this.bash && \
+    echo "export HISTIGNORE=\"l:ll:lt:ls:bg:fg:mc:history::ls -lah:..:ls -l;ls -lh;lt;la\"" >> source_this.bash && \
+    echo "export HISTTIMEFORMAT=\"%F %T \"" >> source_this.bash && \
+    echo "export PROMPT_COMMAND=\"history -a\"" >> source_this.bash && \
+    echo "bind '\"\e[A\":history-search-backward'" >> source_this.bash && \
+    echo "bind '\"\e[B\":history-search-forward'" >> source_this.bash && \
+    echo "" >> source_this.bash && \
+    echo "# tempo" >> source_this.bash && \
+    echo "export TEMPO=\$PSRHOME/tempo" >> source_this.bash && \
+    echo "export PATH=\$PATH:\$TEMPO/bin" >> source_this.bash && \
+    echo "" >> source_this.bash && \
+    echo "# tempo2" >> source_this.bash && \
+    echo "export TEMPO2=\$PSRHOME/tempo2/T2runtime" >> source_this.bash && \
+    echo "export PATH=\$PATH:\$TEMPO2/bin" >> source_this.bash && \
+    echo "export C_INCLUDE_PATH=\$C_INCLUDE_PATH:\$TEMPO2/include" >> source_this.bash && \
+    echo "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\$TEMPO2/lib" >> source_this.bash && \
+    echo "" >> source_this.bash && \
+    echo "# tempo2" >> source_this.bash && \
+    echo "export TEMPO2=\$PSRHOME/tempo2/T2runtime" >> source_this.bash && \
+    echo "export PATH=\$PATH:\$TEMPO2/bin" >> source_this.bash && \
+    echo "export C_INCLUDE_PATH=\$C_INCLUDE_PATH:\$TEMPO2/include" >> source_this.bash && \
+    echo "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\$TEMPO2/lib" >> source_this.bash && \
+    echo "export PYTHONPATH=\$PYTHONPATH:\$PSRCHIVE/install/lib/python3.6/site-packages/" >> source_this.bash && \
+    echo "" >> source_this.bash && \
+    echo "# DSPSR" >> source_this.bash && \
+    echo "export DSPSR=\$PSRHOME/dspsr" >> source_this.bash && \
+    echo "export PATH=\$PATH:\$DSPSR/install/bin" >> source_this.bash && \
+    echo "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\$DSPSR/install/lib" >> source_this.bash && \
+    echo "export C_INCLUDE_PATH=\$C_INCLUDE_PATH:\$DSPSR/install/include" >> source_this.bash && \
+    echo "" >> source_this.bash
 CMD ["bash"]
