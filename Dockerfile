@@ -1,10 +1,10 @@
-FROM ubuntu:bionic
+FROM ubuntu:jammy
 
 # Suppress debconf warnings
 ENV DEBIAN_FRONTEND noninteractive
 
 # Install dependencies
-RUN echo 'deb http://us.archive.ubuntu.com/ubuntu bionic main multiverse' >> /etc/apt/sources.list && \
+RUN echo 'deb http://us.archive.ubuntu.com/ubuntu jammy main multiverse' >> /etc/apt/sources.list && \
     apt-get update -y && \
     apt-get --no-install-recommends -y install \
     build-essential \
@@ -23,8 +23,8 @@ RUN echo 'deb http://us.archive.ubuntu.com/ubuntu bionic main multiverse' >> /et
     pgplot5 \
     swig3.0 \
     python3 \
-    python3-dev \
     python3-pip \
+    python3-dev \
     libfftw3-3 \
     libfftw3-bin \
     libfftw3-dev \
@@ -37,17 +37,17 @@ RUN echo 'deb http://us.archive.ubuntu.com/ubuntu bionic main multiverse' >> /et
     libltdl-dev \
     gsl-bin \
     libgsl-dev \
+    libglib2.0-dev \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get -y clean
 
-RUN ln -s /usr/bin/python3 /usr/bin/python && \
-ln -s  /usr/bin/swig3.0  /usr/bin/swig
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1 \
+    && update-alternatives --install /usr/bin/python  python  /usr/bin/python3.10 1 \
+    && ln -s  /usr/bin/swig3.0  /usr/bin/swig
 
 
-
-# Install python2 packages
-RUN pip3 install pip -U && \
-    pip3 install setuptools -U && \
+# Install python3 packages
+RUN pip3 install setuptools -U && \
     pip3 install numpy -U && \
     pip3 install scipy -U && \
     pip3 install watchdog && \
@@ -56,7 +56,8 @@ RUN pip3 install pip -U && \
     pip3 install -U setuptools setuptools_scm pep517 && \
     pip3 install -U emcee && \
     pip3 install jupyterlab -U && \
-    pip install git+https://github.com/FRBs/sigpyproc3
+    pip3 install git+https://github.com/FRBs/sigpyproc3 && \
+    pip3 install astropy -U
     
 
 
@@ -68,7 +69,7 @@ ENV PGPLOT_BACKGROUND white
 ENV PGPLOT_FOREGROUND black
 ENV PGPLOT_DEV /xs
 
-ENV PSRHOME /software/
+ENV PSRHOME /software
 WORKDIR $PSRHOME 
 
 # Pull all repos
@@ -79,20 +80,22 @@ RUN wget http://www.atnf.csiro.au/people/pulsar/psrcat/downloads/psrcat_pkg.tar.
     git clone https://github.com/SixByNine/psrxml.git && \
     git clone https://github.com/straten/epsic.git && \
     git clone  git://git.code.sf.net/p/tempo/tempo && \
-    git clone git://git.code.sf.net/p/dspsr/code dspsr
+    git clone git://git.code.sf.net/p/dspsr/code dspsr && \
+    git clone https://github.com/scottransom/presto.git 
 
 #PSRCAT
 ENV PSRCAT_FILE $PSRHOME/psrcat_tar/psrcat.db
 ENV PATH $PATH:$PSRHOME/psrcat_tar
 WORKDIR $PSRHOME/psrcat_tar
-RUN /bin/bash makeit && \
+
+RUN sed -i s/gcc/'gcc -fcommon'/g makeit && /bin/bash makeit && \
     rm -f ../psrcat_pkg.tar.gz
 
 # PSRXML
-ENV PSRXML $PSRHOME/psrxml
-ENV PATH $PATH:$PSRXML/install/bin
-ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:$PSRXML/install/lib
-ENV C_INCLUDE_PATH $C_INCLUDE_PATH:$PSRXML/install/include
+ENV PSRXML=$PSRHOME/psrxml
+ENV PATH=$PATH:$PSRXML/install/bin
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PSRXML/install/lib
+ENV C_INCLUDE_PATH=$C_INCLUDE_PATH:$PSRXML/install/include
 WORKDIR $PSRXML
 RUN autoreconf --install --warnings=none
 RUN ./configure --prefix=$PSRXML/install && \
@@ -107,13 +110,28 @@ WORKDIR $PSRHOME/tempo
 RUN ./prepare && \
     ./configure --prefix=$PSRHOME/tempo && \
     make && \
-    make install    
+    make install
+
+WORKDIR $PSRHOME
+
+#calceph
+RUN wget https://www.imcce.fr/content/medias/recherche/equipes/asd/calceph/calceph-3.5.3.tar.gz && \
+    tar -xvzf calceph-3.5.3.tar.gz 
+ENV CALCEPH=$PSRHOME"/calceph-3.5.3" \
+    PATH=$PATH:$CALCEPH"/install/bin" \
+    LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CALCEPH"/install/lib" \
+    C_INCLUDE_PATH=$C_INCLUDE_PATH:$CALCEPH"/install/include"
+WORKDIR $CALCEPH
+RUN ./configure --prefix=$CALCEPH/install --with-pic --enable-shared --enable-static --enable-fortran --enable-thread && \
+    make && \
+    make check && \
+    make install
 
 # tempo2
-ENV TEMPO2 $PSRHOME/tempo2/T2runtime
-ENV PATH $PATH:$PSRHOME/tempo2/T2runtime/bin
-ENV C_INCLUDE_PATH $C_INCLUDE_PATH:$PSRHOME/tempo2/T2runtime/include
-ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:$PSRHOME/tempo2/T2runtime/lib
+ENV TEMPO2=$PSRHOME/tempo2/T2runtime
+ENV PATH=$PATH:$PSRHOME/tempo2/T2runtime/bin
+ENV C_INCLUDE_PATH=$C_INCLUDE_PATH:$PSRHOME/tempo2/T2runtime/include
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PSRHOME/tempo2/T2runtime/lib
 WORKDIR $PSRHOME/tempo2
 RUN sync && perl -pi -e 's/chmod \+x/#chmod +x/' bootstrap # Get rid of: returned a non-zero code: 126.
 RUN ./bootstrap && \
@@ -123,28 +141,29 @@ RUN ./bootstrap && \
     make plugins-install && \
     rm -rf .git
 
-#COPY gbt2gps.clk $TEMPO2/clock/
-#COPY mk2utc.clk $TEMPO2/clock/
+COPY gbt2gps.clk $TEMPO2/clock/
+COPY mk2utc.clk $TEMPO2/clock/
     
 
 # PSRCHIVE
-ENV PSRCHIVE $PSRHOME/psrchive
-ENV PATH $PATH:$PSRCHIVE/install/bin
-ENV C_INCLUDE_PATH $C_INCLUDE_PATH:$PSRCHIVE/install/include
-ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:$PSRCHIVE/install/lib
+ENV PSRCHIVE=$PSRHOME/psrchive
+ENV PATH=$PATH:$PSRCHIVE/install/bin
+ENV C_INCLUDE_PATH=$C_INCLUDE_PATH:$PSRCHIVE/install/include
+ENV LD_LIBRARY_PATH=c$LD_LIBRARY_PATH:$PSRCHIVE/install/lib
 ENV PYTHONPATH $PSRCHIVE/install/lib/python2.7/site-packages
 WORKDIR $PSRCHIVE
-RUN git checkout 844461775b4b6f4b4e786d323ae82224b63c0e85 && ./bootstrap && \
+#RUN git checkout 844461775b4b6f4b4e786d323ae82224b63c0e85
+RUN ./bootstrap && \
     ./configure --prefix=$PSRCHIVE/install --x-libraries=/usr/lib/x86_64-linux-gnu --with-psrxml-dir=$PSRXML/install --enable-shared --enable-static F77=gfortran LDFLAGS="-L"$PSRXML"/install/lib" LIBS="-lpsrxml -lxml2" && \
     make -j $(nproc) && \
     make && \
     make install
 
 # DSPSR
-ENV DSPSR $PSRHOME/dspsr
-ENV PATH $PATH:$DSPSR/install/bin
-ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:$DSPSR/install/lib
-ENV C_INCLUDE_PATH $C_INCLUDE_PATH:$DSPSR/install/include
+ENV DSPSR=$PSRHOME/dspsr
+ENV PATH=$PATH:$DSPSR/install/bin
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DSPSR/install/lib
+ENV C_INCLUDE_PATH=$C_INCLUDE_PATH:$DSPSR/install/include
 WORKDIR $DSPSR
 RUN ./bootstrap && \
     echo "apsr asp bcpm bpsr caspsr cpsr cpsr2 dummy fits kat lbadr lbadr64  lump lwa puma2 sigproc ska1 " > backends.list && \
@@ -152,10 +171,37 @@ RUN ./bootstrap && \
     make -j $(nproc) && \
     make && \
     make install
+ENV PSRFITSDEFN /software/psrchive/install/share/psrheader.fits
 
+# PRESTO 4
+ENV PRESTO=$PSRHOME/presto
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PRESTO/lib
+ENV C_INCLUDE_PATH=$C_INCLUDE_PATH:$PRESTO/include
+WORKDIR $PRESTO/src
+# The following is necessary if your system isn't Ubuntu 20.04
+RUN make cleaner
+# Now build from scratch
+RUN make libpresto slalib
+
+WORKDIR $PRESTO/src
+RUN make makewisdom && \
+    make prep && \
+    make -j 1 && \
+    make clean
+ENV PATH="$PRESTO/bin/:${PATH}"
+
+WORKDIR $PRESTO
+RUN pip3 install $PRESTO && \
+    sed -i 's/env python/env python3/' $PRESTO/bin/*py
+#    python3 tests/test_presto_python.py
 
 LABEL Vivek Venkatraman Krishnan "vkrishnan@mpifr-bonn.mpg.de"
-ENV PYTHONPATH $PYTHONPATH:$PSRCHIVE/install/lib/python3.6/site-packages/
+ENV PYTHONPATH $PYTHONPATH:$PSRCHIVE/install/lib/python3.10/site-packages/
+RUN echo 'deb http://us.archive.ubuntu.com/ubuntu jammy main multiverse' >> /etc/apt/sources.list && \
+    apt-get update -y && \
+    apt-get --no-install-recommends -y install nano vim emacs && \
+    rm -rf /var/lib/apt/lists/* && \
+    apt-get -y clean
 
 WORKDIR $PSRHOME
 
@@ -201,5 +247,20 @@ RUN echo "" >> .bashrc && \
     echo "export PATH=\$PATH:\$DSPSR/install/bin" >> source_this.bash && \
     echo "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\$DSPSR/install/lib" >> source_this.bash && \
     echo "export C_INCLUDE_PATH=\$C_INCLUDE_PATH:\$DSPSR/install/include" >> source_this.bash && \
-    echo "" >> source_this.bash
+    echo "export PSRFITSDEFN=/software/psrchive/install/share/psrheader.fits" >> source_this.bash && \
+    echo "# PRESTO" >> source_this.bash && \
+    echo "export PRESTO=$PSRHOME/presto" >> source_this.bash && \
+    echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PRESTO/lib" >> source_this.bash && \
+    echo "export C_INCLUDE_PATH=$C_INCLUDE_PATH:$PRESTO/include" >> source_this.bash && \
+    echo 'export PS1="\[\e[4;30m\]\u@\h\[\e[0m\]:\[\e[1;10m\]\w\[\e[0m\]\$ (docker)> "' >> source_this.bash && \
+    echo 'alias ls="ls --color=auto"'       >> source_this.bash && \
+    echo 'alias ll="ls -l"'                 >> source_this.bash && \
+    echo 'alias LL="ls -lL"'                >> source_this.bash && \
+    echo 'alias lt="ls -lrt --color"'       >> source_this.bash && \
+    echo 'alias lh="ls -lh --color"'        >> source_this.bash && \
+    echo 'alias rm="rm -i"'                 >> source_this.bash && \
+    echo 'alias cp="cp -i"'                 >> source_this.bash && \
+    echo 'alias mv="mv -i"'                 >> source_this.bash && \
+    echo 'alias emacs="emacs -nw"'          >> source_this.bash && \
+    echo "" >> source_this.bash    
 CMD ["bash"]
