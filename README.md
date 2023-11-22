@@ -1,13 +1,17 @@
 # pulsar_folder
-Skeleton docker file with necessary software to fold pulsar data
+Skeleton docker file with necessary software to fold pulsar data. 
+
+Contains:
+- psrchive
+- dspsr
+- tempo
+- tempo2
+- presto
+- psrcat
 
 
-# known bug
+# To do
+If you are using this on singularity, please `source /software/source_this.bash` to get all software
 
-If you cannot run psrchive on psrfits format data, please do the following:
-```
-export PSRCHIVE=/software//psrchive/install/
-export PSRFITSDEFN=/software//psrchive/install/share/psrheader.fits
-```
-This will be fixed in a future version. 
+ 
 
